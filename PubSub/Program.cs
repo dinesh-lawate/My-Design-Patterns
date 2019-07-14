@@ -6,54 +6,120 @@ using System.Threading.Tasks;
 
 namespace PubSub
 {
-    public class StatusUpdateEventArgs : EventArgs
-    {
-        public string Value { get; set; }
-
-        public StatusUpdateEventArgs(string value)
-        {
-            this.Value = value;
-        }
-    }
-
-    public class StatusUpdatePublisher
-    {
-        public event EventHandler<StatusUpdateEventArgs> onStatusUpdate = delegate (Object sender, StatusUpdateEventArgs e)
-        {
-        };
-
-        public virtual void Publish(string status)
-        {
-            onStatusUpdate(this, new StatusUpdateEventArgs(status));
-        }
-    }
-
-
-
+    /*
+        Defination - The PubSub pattern is a software design pattern in which an object, called the publisher 
+        notifies subscriber automatically of any state changes. Here publisher doesn't know any thing about the subscriber.        
+    */
     class Program
     {
         static void Main(string[] args)
         {
-            StatusUpdatePublisher statusUpdatePublisher = new StatusUpdatePublisher();
+            IStock microsoftStock = new Stock("Microsoft");
 
-            statusUpdatePublisher.onStatusUpdate += (sender, e) =>
-            {
-                Console.WriteLine("Subscriber 1 " + e.Value);
-            };
+            IInvestor investor1 = new Investor("Adam");
+            IInvestor investor2 = new Investor("John");
 
-            statusUpdatePublisher.Publish("New");
+            investor1.Subscribe(microsoftStock);
+            investor2.Subscribe(microsoftStock);
 
-            statusUpdatePublisher.onStatusUpdate += (sender, e) =>
-            {
-                Console.WriteLine("Subscriber 2 " + e.Value);
-            };
+            microsoftStock.StockPrice = 100;
 
-            string newStatus = Console.ReadLine();
+            double newPrice = Convert.ToDouble(Console.ReadLine());
 
-            statusUpdatePublisher.Publish(newStatus);
+            microsoftStock.StockPrice = newPrice;
 
             Console.ReadKey();
+        }
+    }
 
+    /// <summary>
+    /// Event argument type passed from publisher to subcriber
+    /// </summary>
+    public class StockEventArgs : EventArgs
+    {
+        public string Name { get; set; }
+        public double Price { get; set; }
+
+        public StockEventArgs(string name, double value)
+        {
+            this.Name = name;
+            this.Price = value;
+        }
+    }
+
+    /// <summary>
+    /// Abstract publisher
+    /// </summary>
+    public interface IStock
+    {
+        string StockName { get; }
+        double StockPrice { get; set; }
+
+        event EventHandler<StockEventArgs> OnPriceChange;
+    }
+
+    /// <summary>
+    /// Concrete publisher
+    /// </summary>
+    public class Stock : IStock
+    {
+        private double _stockPrice;
+
+        public Stock(string name)
+        {
+            this.StockName = name;
+        }
+
+        /// <summary>
+        /// Exposes price change event for subscribers
+        /// </summary>
+        public event EventHandler<StockEventArgs> OnPriceChange;
+
+        public double StockPrice
+        {
+            get { return _stockPrice; }
+            set
+            {
+                _stockPrice = value;
+                OnPriceChange(this, new StockEventArgs(StockName, value));
+            }
+        }
+
+        public string StockName { get; }
+    }
+
+    /// <summary>
+    /// Abstract Subscriber
+    /// </summary>
+    interface IInvestor
+    {
+        void Subscribe(IStock stock);
+    }
+
+    /// <summary>
+    /// Concrete Subscriber
+    /// </summary>
+    class Investor : IInvestor
+    {
+        public string Name { get; set; }
+
+        public Investor(string name)
+        {
+            Name = name;
+        }
+
+        /// <summary>
+        /// Subscribing to price change event
+        /// </summary>
+        /// <param name="stock"></param>
+        public void Subscribe(IStock stock)
+        {
+            Console.WriteLine("Investor {0} subscribed to stock {1}.", this.Name, stock.StockName);
+            
+            stock.OnPriceChange += (sender, e) =>
+            {
+                Console.WriteLine("Hello Mr. {0}, Price of {1} changed to {2}.", Name, stock.StockName, stock.StockPrice);
+            };
         }
     }
 }
